@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -71,4 +72,34 @@ func MapToString(m map[string]int) string {
 	}
 
 	return strings.Join(s,",")
+}
+
+// RedirectError specific error type that happens on redirection
+type RedirectError struct {
+	msg string
+}
+
+func (error *RedirectError) Error() string {
+	return error.msg
+}
+
+func NewRedirectError(message string) *RedirectError {
+	rt := RedirectError{msg: message}
+	return &rt
+}
+
+//EstimateHttpHeadersSize had to create this because headers size was not counted
+func EstimateHttpHeadersSize(headers http.Header) (result int64) {
+	result = 0
+
+	for k, v := range headers {
+		result += int64(len(k) + len(": \r\n"))
+		for _, s := range v {
+			result += int64(len(s))
+		}
+	}
+
+	result += int64(len("\r\n"))
+
+	return result
 }

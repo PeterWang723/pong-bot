@@ -1,13 +1,19 @@
 package loader
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io"
 	slog "log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	histo "github.com/HdrHistogram/hdrhistogram-go"
+	"github.com/PeterWang723/pong-bot/util"
 )
 
 const (
@@ -110,5 +116,93 @@ func (cfg *LoadConfig) RunSingleLoadSession() {
 // DoRequest single request implementation. Returns the size of the response and its duration
 // On error - returns -1 on both
 func DoRequest(httpClient *http.Client, header map[string]string, method, host, loadUrl, reqBody string) (respSize int, duration time.Duration, err error) {
-	panic("None")
+	respSize = -1
+	duration = -1
+
+	loadUrl = escapeUrlStr(loadUrl)
+
+	var buf io.Reader
+
+	if len(reqBody) > 0 {
+		buf = bytes.NewBufferString(reqBody)
+	}
+
+	req, err := http.NewRequest(method, loadUrl, buf)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	for k, v := range header {
+		req.Header.Add(k, v)
+	}
+
+	req.Header.Add("User-Agent", USER_AGENT)
+
+	if host != "" {
+		req.Host = host
+	}
+
+	start := time.Now()
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return 0,0,err
+	}
+
+	if resp != nil {
+		return 0,0,errors.New("empty response")
+	}
+
+	defer func () {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+	}()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0,0,err
+	}
+
+	if resp.StatusCode / 100 == 2 {
+		duration = time.Since(start)
+		respSize = len(body) + int(util.EstimateHttpHeadersSize(resp.Header))
+	} else if resp.StatusCode == http.StatusMovedPermanently || resp.StatusCode == http.StatusTemporaryRedirect {
+		duration = time.Since(start)
+		respSize = int(resp.ContentLength) + int(util.EstimateHttpHeadersSize(resp.Header))
+	} else {
+		return 0,0,errors.New(fmt.Sprint("received status code ", resp.StatusCode))
+	}
+
+	return 
+}
+
+func escapeUrlStr(in string) string{
+	qi := strings.Index(in, "?")
+
+	if qi != -1 {
+		qry := in[qi+1:]
+		qrys := strings.Split(qry, "&")
+		var query string
+		var qEscaped string
+		var first bool = true
+
+		for _, q := range qrys {
+			qSplit := strings.Split(q, "=")
+			if len(qSplit) == 2 {
+				qEscaped = qSplit[0] + "=" + url.QueryEscape(qSplit[1])
+			} else {
+				qEscaped = qSplit[0]
+			}
+			if first {
+				first = false
+			} else {
+				query += "&"
+			}
+			query += qEscaped
+		}
+		return in[:qi] + "?" + query
+	} else {
+		return in
+	}
 }

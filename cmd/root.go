@@ -136,7 +136,7 @@ func run(cmd *cobra.Command, args []string) {
 		select{
 			case <-sigChan:
 				loadGen.Stop()
-
+				fmt.Printf("stopping...\n")
 			case stats := <-statsAggregator:
 				aggStats.NumErrs += stats.NumErrs
 				aggStats.NumRequests += stats.NumRequests
