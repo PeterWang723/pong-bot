@@ -1,4 +1,4 @@
-package pongbot
+package main
 
 import (
   "github.com/PeterWang723/pong-bot/cmd"

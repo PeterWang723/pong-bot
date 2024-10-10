@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	histo "github.com/HdrHistogram/hdrhistogram-go"
 	"github.com/PeterWang723/pong-bot/loader"
 	"github.com/PeterWang723/pong-bot/util"
 	"github.com/spf13/cobra"
-	histo "github.com/HdrHistogram/hdrhistogram-go"
 )
 
 const APP_VERSION = "0.10"
@@ -44,7 +44,6 @@ var (
 	rootCmd = &cobra.Command{
 		Use:   "pbot <url>",
         Short: "pong-bot is a CLI tool for HTTP benchmarking",
-        Args:  cobra.MinimumNArgs(1),
 	}
 )
 
@@ -71,21 +70,28 @@ func init() {
 	rootCmd.Flags().StringVar(&caCert, "ca", "", "CA certificate file to verify peer against (SSL/TLS)")
 	rootCmd.Flags().BoolVar(&http2, "http2", true, "Use HTTP/2 (Default true)")
 	rootCmd.Flags().IntVar(&cpus, "cpus", 0, "Number of CPUs to use (0 to use all available CPUs)")
-
 	header = make(map[string]string)
 
 	rootCmd.Run = run
 }
 
 // Execute executes the root command.
-func Execute() error {
-	return rootCmd.Execute()
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
 }
  
 func run(cmd *cobra.Command, args []string) {
 	for _, hdr := range headerFlags {
 		hp := strings.SplitN(hdr, ":", 2)
 		header[hp[0]] = hp[1]
+	}
+
+	if versionFlag {
+		fmt.Println("Version:", APP_VERSION)
+		return
 	}
 
 	if playbackFile != "" {
@@ -96,12 +102,12 @@ func run(cmd *cobra.Command, args []string) {
 		}
 		testUrl = string(data)
 	} else {
-		testUrl = args[0]
-	}
-
-	if versionFlag {
-		fmt.Println("Version:", APP_VERSION)
-		return
+		if args != nil {
+			testUrl = args[0]
+		} else {
+			fmt.Println("No url added")
+			return
+		}
 	}
 
 	if cpus > 0 {

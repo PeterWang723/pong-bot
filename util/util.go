@@ -11,7 +11,7 @@ type HeaderList []string
 
 // Type implements pflag.Value.
 func (i *HeaderList) Type() string {
-	panic("unimplemented")
+	return "The slice of header"
 }
 
 func (i *HeaderList) String() string {
@@ -32,7 +32,7 @@ type ByteSize struct {
 	Size float64
 }
 
-func (self ByteSize) String() string {
+func (size ByteSize) String() string {
 	var rt float64
 	var suffix string
 	const (
@@ -42,17 +42,17 @@ func (self ByteSize) String() string {
 		GByte = MByte * 1024
 	)
 
-	if self.Size > GByte {
-		rt = self.Size / GByte
+	if size.Size > GByte {
+		rt = size.Size / GByte
 		suffix = "GB"
-	} else if self.Size > MByte {
-		rt = self.Size / MByte
+	} else if size.Size > MByte {
+		rt = size.Size / MByte
 		suffix = "MB"
-	} else if self.Size > KByte {
-		rt = self.Size / KByte
+	} else if size.Size > KByte {
+		rt = size.Size / KByte
 		suffix = "KB"
 	} else {
-		rt = self.Size
+		rt = size.Size
 		suffix = "bytes"
 	}
 
